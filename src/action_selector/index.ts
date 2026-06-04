@@ -1,11 +1,13 @@
 const ACTION_KEYS = ['A', 'B', 'C'] as const;
 const ADVANCE_BUTTON_NAME = '推进';
+const BULLET_ACTION_PATTERN = /^[-－]\s*(.+)$/;
 
 type ActionKey = (typeof ACTION_KEYS)[number];
 type ActionOptions = Partial<Record<ActionKey, string>>;
 
 function parseActionOptionsFromStatusBlock(statusBlock: string): ActionOptions {
   const options: ActionOptions = {};
+  const bulletedOptions: string[] = [];
   const lines = statusBlock.split(/\r?\n/);
   let inActionArea = false;
   let currentKey: ActionKey | undefined;
@@ -29,9 +31,25 @@ function parseActionOptionsFromStatusBlock(statusBlock: string): ActionOptions {
       continue;
     }
 
+    const bulletMatch = line.match(BULLET_ACTION_PATTERN);
+    if (bulletMatch) {
+      bulletedOptions.push(bulletMatch[1].trim());
+      currentKey = undefined;
+      continue;
+    }
+
     if (currentKey && line && !line.startsWith('TIPS') && !line.includes('════')) {
       options[currentKey] = `${options[currentKey]} ${line}`;
     }
+  }
+
+  if (!hasActionOptions(options)) {
+    ACTION_KEYS.forEach((key, index) => {
+      const option = bulletedOptions[index];
+      if (option) {
+        options[key] = option;
+      }
+    });
   }
 
   return options;
